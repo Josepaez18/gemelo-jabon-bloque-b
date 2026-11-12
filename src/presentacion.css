@@ -1,0 +1,815 @@
+/* Modo presentación: pantalla completa con tablero tipo sala de control.
+   Los colores son fijos (oscuros): la presentación siempre va en tema oscuro. */
+
+/* ---------- Botón de presentar ---------- */
+.btn-presentar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: var(--radio-s);
+  padding: 6px 14px 6px 12px;
+  min-height: 34px;
+  font-weight: 650;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  box-shadow: 0 4px 14px rgb(37 99 235 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.25);
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.btn-presentar:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgb(37 99 235 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+.btn-presentar svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* ---------- Estructura ---------- */
+html.presentando body {
+  display: block;
+  overflow: hidden;
+}
+html.presentando .barra,
+html.presentando .panel,
+html.presentando .controles-vista,
+html.presentando .leyenda,
+html.presentando .ayuda-vista,
+html.presentando .aviso-envivo {
+  display: none !important;
+}
+html.presentando .principal {
+  display: block;
+}
+html.presentando .vista {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  min-height: 0;
+}
+html.presentando.quieto .vista {
+  cursor: none;
+}
+html.presentando:not([data-escena='mqtt']) .etiqueta-broker {
+  visibility: hidden;
+}
+html.presentando:has(.detalle:not([hidden])) .hud-eventos {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud {
+  --hud-borde: rgb(148 197 255 / 0.16);
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  color: #e8eef6;
+  font-variant-numeric: tabular-nums;
+}
+/* Velos arriba y abajo: el texto se lee sobre cualquier parte de la maqueta. */
+.hud::before,
+.hud::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.hud::before {
+  top: 0;
+  height: 170px;
+  background: linear-gradient(rgb(2 6 18 / 0.7), transparent);
+}
+.hud::after {
+  bottom: 0;
+  height: 320px;
+  background: linear-gradient(transparent, rgb(2 6 18 / 0.82));
+}
+.hud-caja,
+.hud-kpi {
+  background: linear-gradient(180deg, rgb(15 23 42 / 0.74), rgb(8 13 25 / 0.6));
+  border: 1px solid var(--hud-borde);
+  border-radius: 14px;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.hud h2 {
+  margin: 0;
+}
+.hud-caja > h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.hud-caja > h2 span {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #7dd3fc;
+  font-weight: 650;
+}
+
+/* ---------- Cabecera: marca, indicadores y reloj ---------- */
+.hud-cabecera {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  right: 26px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  animation: bajaHud 0.9s 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hud-marca {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+.hud-marca svg {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  filter: drop-shadow(0 0 14px rgb(56 189 248 / 0.55));
+}
+.hud-marca h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.hud-marca p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.hud-kpis {
+  display: flex;
+  gap: 10px;
+}
+.hud-kpi {
+  min-width: 132px;
+  padding: 10px 14px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+}
+.hud-kpi b {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(180deg, #ffffff, #bfdbfe);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hud-kpi.alerta b {
+  background: none;
+  color: #f87171;
+}
+.hud-kpi.bien b {
+  background: linear-gradient(180deg, #bbf7d0, #4ade80);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.hud-kpi span {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.hud-reloj {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+.hud-reloj strong {
+  font-size: 40px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.hud-reloj #hud-dia {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.hud-modo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+.hud-modo i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8;
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+/* ---------- Tablero de dispensadores y eventos ---------- */
+.hud-tablero,
+.hud-eventos {
+  position: absolute;
+  top: 50%;
+  padding: 14px;
+  pointer-events: auto;
+  transition: opacity 0.3s ease;
+}
+.hud-tablero {
+  left: 26px;
+  width: 250px;
+  transform: translateY(-44%);
+  animation: entraIzq 0.9s 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hud-eventos {
+  right: 26px;
+  width: 330px;
+  transform: translateY(-44%);
+  animation: entraDer 0.9s 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hud-rejilla {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.hud-fila {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.hud-piso {
+  font-size: 11px;
+  font-weight: 750;
+  color: #64748b;
+}
+.hud-celda {
+  --c: #94a3b8;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 6px;
+  padding: 6px 8px 7px;
+  border: 1px solid rgb(148 163 184 / 0.16);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.035);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+}
+.hud-celda:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+.hud-celda[data-estado='normal'] { --c: #22c55e; }
+.hud-celda[data-estado='bajo'] { --c: #fbbf24; }
+.hud-celda[data-estado='vacio'] { --c: #f87171; }
+.hud-celda[data-estado='sin_dato'] { --c: #94a3b8; }
+.hud-celda[data-estado='esperando'] { --c: #64748b; }
+.hud-celda[data-estado='vacio'] {
+  border-color: rgb(248 113 113 / 0.6);
+  animation: alertaHud 1.2s ease-in-out infinite;
+}
+.hud-celda[data-estado='bajo'] {
+  border-color: rgb(251 191 36 / 0.4);
+}
+.hud-celda.revisar {
+  border-color: #a78bfa;
+}
+.hud-celda.foco {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf8, 0 0 20px rgb(56 189 248 / 0.4);
+}
+.c-id {
+  font-size: 11.5px;
+  font-weight: 750;
+}
+.c-id small {
+  margin-left: 3px;
+  font-size: 9.5px;
+  font-weight: 650;
+  color: #64748b;
+}
+.c-val {
+  justify-self: end;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--c);
+}
+.c-barra {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.08);
+  overflow: hidden;
+}
+.c-barra i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  right: 0;
+  background: var(--c);
+  transform-origin: left;
+  transition: transform 0.6s ease;
+}
+.hud-conteo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+}
+.hud-conteo span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.hud-conteo i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 6px var(--c);
+}
+.hud-conteo [data-estado='normal'] { --c: #22c55e; }
+.hud-conteo [data-estado='bajo'] { --c: #fbbf24; }
+.hud-conteo [data-estado='vacio'] { --c: #f87171; }
+.hud-conteo [data-estado='sin_dato'] { --c: #94a3b8; }
+
+.hud-mensajes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+.hud-mensajes div {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: rgb(56 189 248 / 0.08);
+  border: 1px solid rgb(56 189 248 / 0.25);
+}
+.hud-mensajes .mal {
+  background: rgb(248 113 113 / 0.08);
+  border-color: rgb(248 113 113 / 0.25);
+}
+.hud-mensajes b {
+  font-size: 21px;
+  font-weight: 750;
+  color: #7dd3fc;
+  line-height: 1.15;
+}
+.hud-mensajes .mal b {
+  color: #fca5a5;
+}
+.hud-mensajes span {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+#hud-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+#hud-lista li {
+  --c: #64748b;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border-left: 3px solid var(--c);
+  background: rgb(255 255 255 / 0.04);
+  font-size: 12px;
+  line-height: 1.35;
+}
+#hud-lista li.nuevo {
+  animation: entraEvento 0.5s ease both;
+}
+#hud-lista li.rechazo { --c: #f87171; }
+#hud-lista li.aseo { --c: #2dd4bf; }
+#hud-lista li.aviso { --c: #fbbf24; }
+#hud-lista li.nada {
+  grid-template-columns: 1fr;
+  color: #94a3b8;
+}
+#hud-lista time {
+  color: #64748b;
+  font-weight: 650;
+}
+#hud-lista span {
+  overflow-wrap: anywhere;
+  color: #e2e8f0;
+}
+
+/* ---------- Narración ---------- */
+.hud-relato {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  width: min(780px, calc(100% - 680px));
+  padding: 16px 24px 18px;
+  border-radius: 18px;
+  border: 1px solid rgb(148 197 255 / 0.14);
+  /* Tarjeta oscura: el texto se lee aunque detrás pase un medidor brillante o una etiqueta. */
+  background: linear-gradient(180deg, rgb(6 11 22 / 0.6), rgb(6 11 22 / 0.86));
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.45);
+  text-align: center;
+}
+.hud-paso {
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+.hud-relato h2 {
+  margin: 8px 0 10px;
+  font-size: clamp(26px, 2.6vw, 42px);
+  font-weight: 780;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  background: linear-gradient(90deg, #ffffff 30%, #bae6fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 14px rgb(0 0 0 / 0.6));
+}
+.hud-relato p {
+  margin: 0 auto;
+  max-width: 680px;
+  font-size: clamp(15px, 1.25vw, 19px);
+  line-height: 1.5;
+  color: #d5dde8;
+}
+/* Con varias columnas (pasos 1, 4, 5, 7) la narración se ensancha. */
+.hud-relato.ancho {
+  width: min(1180px, calc(100% - 640px));
+}
+.hud-columnas:empty,
+.hud-ficha:empty {
+  display: none;
+}
+.hud-columnas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 16px auto 0;
+  text-align: left;
+  text-shadow: none;
+}
+.hud-columnas > div {
+  padding: 11px 14px 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(148 197 255 / 0.12);
+  background: rgb(255 255 255 / 0.04);
+}
+.hud-columnas h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+.hud-columnas ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+}
+.hud-columnas li {
+  position: relative;
+  padding-left: 13px;
+  font-size: clamp(13px, 0.95vw, 15.5px);
+  line-height: 1.4;
+  color: #e2e8f0;
+}
+.hud-columnas li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.58em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #38bdf8;
+}
+/* Ficha del dato (paso 2): aparato, valor, hora y el JSON tal como llega. */
+.hud-ficha {
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgb(56 189 248 / 0.3);
+  background: rgb(255 255 255 / 0.04);
+  text-align: left;
+  text-shadow: none;
+}
+.hud-ficha dl {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 4px 22px;
+  margin: 0 0 10px;
+}
+.hud-ficha dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hud-ficha dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.hud-ficha dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: #f1f5f9;
+}
+.hud-ficha code {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(2 6 18 / 0.7);
+  font: 12.5px/1.5 var(--mono);
+  color: #7dd3fc;
+  overflow-wrap: anywhere;
+}
+.hud-ficha p {
+  margin: 0;
+  font-size: 15px;
+  color: #cbd5e1;
+}
+.hud-ficha .hud-enlace {
+  font: 600 16px/1.4 var(--mono);
+  color: #7dd3fc;
+  text-align: center;
+}
+.hud-relato.entra .hud-columnas,
+.hud-relato.entra .hud-ficha {
+  animation: entraTexto 0.8s 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hud-progreso {
+  margin: 14px auto 0;
+  width: 220px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.12);
+  overflow: hidden;
+}
+.hud-progreso i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s linear;
+}
+.hud.pausado .hud-progreso i {
+  background: #fbbf24;
+  box-shadow: none;
+}
+.hud-relato.entra .hud-paso { animation: entraTexto 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hud-relato.entra h2 { animation: entraTexto 0.8s 0.08s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hud-relato.entra p { animation: entraTexto 0.8s 0.18s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* ---------- Controles (se esconden si el mouse no se mueve) ---------- */
+.hud-controles {
+  position: absolute;
+  right: 26px;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  transition: opacity 0.4s ease;
+}
+html.quieto .hud-controles {
+  opacity: 0;
+}
+.hud-controles button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hud-borde);
+  background: rgb(15 23 42 / 0.72);
+  color: #e2e8f0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.15s ease;
+}
+.hud-controles button:hover {
+  background: rgb(30 41 59 / 0.9);
+}
+.hud-controles svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hud-controles .i-play {
+  display: none;
+  fill: currentColor;
+  stroke: none;
+}
+.hud.pausado .i-play { display: block; }
+.hud.pausado .i-pausa { display: none; }
+.hud-teclas {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.hud-teclas kbd {
+  display: inline-block;
+  min-width: 18px;
+  margin: 0 2px;
+  padding: 1px 5px;
+  border: 1px solid rgb(148 163 184 / 0.3);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 600 10px/1.4 var(--sans);
+  color: #94a3b8;
+  text-align: center;
+}
+.hud-teclas kbd + kbd {
+  margin-left: 0;
+}
+
+/* ---------- Portada ---------- */
+.hud-portada {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 45%, #0c1d3a 0%, #030712 72%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.9s ease, visibility 0s linear 0.9s;
+}
+/* Aparece de golpe (tapa el salto de cámara) y se desvanece al irse. */
+.hud-portada.visible {
+  opacity: 1;
+  visibility: visible;
+  transition: none;
+}
+.hud-portada svg {
+  width: 78px;
+  height: 78px;
+  filter: drop-shadow(0 0 30px rgb(56 189 248 / 0.7));
+}
+.hud-portada h1 {
+  margin: 6px 0 0;
+  font-size: clamp(44px, 5.2vw, 82px);
+  font-weight: 820;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(90deg, #ffffff, #7dd3fc 60%, #818cf8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hud-portada p {
+  margin: 0;
+  font-size: clamp(17px, 1.7vw, 26px);
+  color: #cbd5e1;
+}
+.hud-portada span {
+  margin-top: 22px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.hud-portada.visible svg { animation: entraTexto 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hud-portada.visible h1 { animation: entraTexto 0.9s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hud-portada.visible p { animation: entraTexto 0.9s 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hud-portada.visible span { animation: entraTexto 0.9s 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@keyframes entraTexto {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+}
+@keyframes bajaHud {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+@keyframes entraIzq {
+  from {
+    opacity: 0;
+    transform: translate(-24px, -44%);
+  }
+}
+@keyframes entraDer {
+  from {
+    opacity: 0;
+    transform: translate(24px, -44%);
+  }
+}
+@keyframes entraEvento {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+@keyframes alertaHud {
+  50% {
+    background: rgb(248 113 113 / 0.16);
+  }
+}
+
+/* En equipos justos el desenfoque se cambia por un fondo más opaco: se ve casi igual. */
+html.calidad-reducida .hud-caja,
+html.calidad-reducida .hud-kpi,
+html.calidad-reducida .hud-controles button {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgb(9 15 28 / 0.88);
+}
+
+/* ---------- Pantallas más pequeñas ---------- */
+@media (max-width: 1280px) {
+  .hud-kpis {
+    display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .hud-tablero,
+  .hud-eventos {
+    display: none;
+  }
+  .hud-relato,
+  .hud-relato.ancho {
+    width: calc(100% - 48px);
+  }
+}
+@media (max-width: 700px) {
+  .hud-marca p,
+  .hud-teclas {
+    display: none;
+  }
+  .hud-marca h1 {
+    font-size: 17px;
+  }
+  .hud-reloj strong {
+    font-size: 26px;
+  }
+  .hud-relato {
+    bottom: 76px;
+  }
+}
