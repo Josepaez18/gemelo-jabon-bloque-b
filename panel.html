@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel de control · Bloque B</title>
+    <meta name="description" content="Panel de control de los 12 nodos IoT de nivel de jabón del Bloque B: estado por piso, tráfico de mensajes y contrato del dato." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3c5 7 9 11.5 9 16.5A9 9 0 0 1 7 19.5C7 14.5 11 10 16 3z' fill='%232a78d6'/%3E%3C/svg%3E" />
+    <script>
+      try {
+        const t = localStorage.getItem('gemelo-tema');
+        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+    <style>
+      /* Abierto con doble clic no carga ni el CSS ni el JS: se avisa con lo que hay aquí. */
+      .pc-arranque { max-width: 560px; margin: 40px auto; padding: 0 16px; font: 15px/1.5 system-ui, 'Segoe UI', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <noscript><p class="pc-arranque">El panel de control necesita JavaScript.</p></noscript>
+    <script>
+      if (location.protocol === 'file:') {
+        document.write('<p class="pc-arranque"><b>Abriste panel.html con doble clic.</b> El navegador bloquea los módulos en archivos locales. Usa <code>iniciar.bat</code> o <code>npm run dev</code> y entra por el botón <b>Panel de control</b> del gemelo.</p>');
+      }
+    </script>
+
+    <header class="pc-barra">
+      <div class="pc-marca">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c5 7 9 11.5 9 16.5A9 9 0 0 1 7 19.5C7 14.5 11 10 16 3z" fill="#2563eb" /><path d="M12 20a4 4 0 0 0 4 4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+        <div>
+          <h1>Panel de control · Bloque B</h1>
+          <p>Nodos IoT de nivel de jabón: estado, tráfico y contrato del dato</p>
+        </div>
+      </div>
+      <span class="pc-fuente" id="pc-fuente" data-fuente="buscando" role="status"><i aria-hidden="true"></i><span>Buscando el gemelo…</span></span>
+      <div class="pc-reloj"><strong id="pc-hora">--:--:--</strong><span id="pc-dia"></span></div>
+    </header>
+
+    <nav class="pc-pestanas" role="tablist" aria-label="Secciones del panel">
+      <button type="button" role="tab" id="t-nodos" aria-controls="p-nodos" aria-selected="true">Nodos</button>
+      <button type="button" role="tab" id="t-comunicacion" aria-controls="p-comunicacion" aria-selected="false" tabindex="-1">Comunicación</button>
+      <button type="button" role="tab" id="t-contrato" aria-controls="p-contrato" aria-selected="false" tabindex="-1">Contrato del dato</button>
+    </nav>
+
+    <main class="pc-cuerpo">
+      <p class="pc-aviso" id="pc-aviso" hidden></p>
+
+      <!-- Nodos: los 12 dispensadores por piso, con 4 comprobaciones cada uno -->
+      <section class="pc-pagina" id="p-nodos" role="tabpanel" aria-labelledby="t-nodos">
+        <section class="pc-kpis" id="pc-kpis" aria-label="Resumen de los nodos"></section>
+        <div class="pc-filtros">
+          <span class="pc-etiqueta" id="l-piso">Piso</span>
+          <div class="pc-grupo" id="pc-piso" role="group" aria-labelledby="l-piso"></div>
+          <span class="pc-etiqueta" id="l-ver">Mostrar</span>
+          <div class="pc-grupo" id="pc-ver" role="group" aria-labelledby="l-ver">
+            <button type="button" data-ver="todos" aria-pressed="true">Todos los nodos</button>
+            <button type="button" data-ver="novedad" aria-pressed="false">Solo con novedad</button>
+          </div>
+        </div>
+        <div class="pc-rejilla">
+          <div>
+            <div class="pc-pisos" id="pc-pisos" aria-label="Nodos por piso"></div>
+            <p class="pc-vacio" id="pc-sin-novedad" hidden>Ningún nodo con novedad: los que se muestran con este filtro funcionan y tienen jabón suficiente.</p>
+          </div>
+          <aside class="pc-lado">
+            <div class="pc-tarjeta">
+              <h2>Cómo leer la verificación</h2>
+              <ul class="pc-leyenda">
+                <li><b>C · Comunicación:</b> llegan mensajes auténticos a tiempo (3 latidos).</li>
+                <li><b>F · Firma:</b> lo que llega a su tema es auténtico (R1–R3).</li>
+                <li><b>D · Dato:</b> la última lectura tiene sentido (R4–R8).</li>
+                <li><b>N · Nivel:</b> hay jabón suficiente (30 % o más).</li>
+              </ul>
+              <p class="pc-simbolos"><span data-r="ok">✓</span> bien <span data-r="aviso">!</span> atención <span data-r="falla">✕</span> falla <span data-r="pendiente">·</span> sin información</p>
+              <p>Clic en un nodo para ver el motivo de cada comprobación y su último JSON.</p>
+            </div>
+            <div class="pc-tarjeta">
+              <h2>Aseo</h2>
+              <p id="pc-aseo">—</p>
+            </div>
+            <div class="pc-tarjeta">
+              <h2>Eventos del receptor</h2>
+              <ol class="pc-eventos" id="pc-eventos"></ol>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Comunicación: cómo viaja el dato y cada mensaje que llega al receptor -->
+      <section class="pc-pagina" id="p-comunicacion" role="tabpanel" aria-labelledby="t-comunicacion" hidden>
+        <section class="pc-tarjeta" aria-labelledby="h-flujo">
+          <h2 id="h-flujo">Cómo viaja el dato</h2>
+          <p>Cada etapa con lo que pasó por ella desde que arrancó la simulación (o desde que se encendió el modo en vivo).</p>
+          <ol class="pc-etapas" id="pc-etapas"></ol>
+        </section>
+
+        <div class="pc-com">
+          <section class="pc-tarjeta pc-trafico" aria-labelledby="h-trafico">
+            <div class="pc-tarjeta-cab">
+              <h2 id="h-trafico">Mensajes que llegan al receptor</h2>
+              <button type="button" class="pc-btn" id="tr-pausa" aria-pressed="false">Pausar</button>
+            </div>
+            <div class="pc-filtros">
+              <div class="pc-grupo" id="tr-resultado" role="group" aria-label="Filtrar por resultado">
+                <button type="button" data-res="" aria-pressed="true">Todos</button>
+                <button type="button" data-res="ok" aria-pressed="false">Aceptados</button>
+                <button type="button" data-res="no" aria-pressed="false">Rechazados</button>
+              </div>
+              <label class="pc-campo"><span>Nodo</span><select id="tr-nodo"></select></label>
+            </div>
+            <p class="pc-nota" id="tr-nota" aria-live="polite"></p>
+            <ol class="pc-tr-lista" id="tr-lista" aria-label="Últimos mensajes, el más reciente primero"></ol>
+          </section>
+          <section class="pc-tarjeta pc-inspector" id="tr-inspector" aria-label="Recorrido del mensaje elegido">
+            <h2>Recorrido de un mensaje</h2>
+            <p class="pc-tenue">Elige un mensaje de la lista para ver cómo llegó, qué dice su JSON, si la firma coincide, qué reglas pasó y qué hizo el receptor con él.</p>
+          </section>
+        </div>
+
+        <section class="pc-tarjeta" aria-labelledby="h-reglas">
+          <h2 id="h-reglas">Rechazos por regla</h2>
+          <p id="pc-reglas-total"></p>
+          <ul class="pc-barras" id="pc-barras"></ul>
+        </section>
+      </section>
+
+      <!-- Contrato del dato: capa de red, capa de negocio y canal gemelo ↔ panel -->
+      <section class="pc-pagina pc-contrato" id="p-contrato" role="tabpanel" aria-labelledby="t-contrato" hidden></section>
+    </main>
+
+    <script type="module" src="/src/panel/panel.js"></script>
+  </body>
+</html>

@@ -8,6 +8,7 @@ import { leerMomento } from './contrato.js';
 import { Dispositivo } from './dispositivo.js';
 import { DISPENSADORES, IDS, punto } from './edificio.js';
 import { Receptor } from './receptor.js';
+import { Trafico } from './trafico.js';
 
 export const INDICADORES = [
   { clave: 'usos', nombre: 'Usos', unidad: '' },
@@ -52,6 +53,7 @@ export class Simulacion {
 
   crearReceptorYAseo() {
     this.receptor = new Receptor({ ids: IDS, cfg: this.cfg, ahoraMs: this.ahora, registrar: this.registrar });
+    this.trafico = new Trafico();
     this.aseo = new Aseo(this, this.estrategia);
   }
 
@@ -148,7 +150,9 @@ export class Simulacion {
 
   entregar(tema, carga, ahoraMs, meta = {}) {
     const r = this.receptor.procesar(tema, carga, ahoraMs);
-    if (this.registrar && this.eventosMensaje.length < 300) {
+    if (!this.registrar) return r;
+    this.trafico.anotar(tema, carga, ahoraMs, r, meta.envivo ? 'envivo' : meta.falso ? 'intruso' : 'simulado');
+    if (this.eventosMensaje.length < 300) {
       this.eventosMensaje.push({ tema, ms: ahoraMs, aceptado: r.aceptado, id: r.id ?? meta.idTema ?? null, regla: r.regla, ...meta });
     }
     return r;

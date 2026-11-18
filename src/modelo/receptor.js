@@ -33,6 +33,29 @@ export const TEXTOS = {
   r8: (antes) => `R8 cae a 0 de golpe: último válido ${antes}`,
 };
 
+// Las 8 reglas, en el orden en que se aplican. Si una falla, las siguientes no se evalúan.
+//   capa 'red':     ¿el mensaje es auténtico? Si falla, no se atribuye a ningún dispensador.
+//   capa 'negocio': ¿el dato tiene sentido? Si falla, el dispensador sigue vivo y pasa a revisar.
+// `comprueba` recibe cfg.receptor para mostrar los límites en uso. Lo usa el panel de control.
+export const REGLAS = [
+  { regla: 'R1', capa: 'red', comprueba: () => 'JSON legible' },
+  { regla: 'R2', capa: 'red', comprueba: () => 'los 7 campos; valor y version enteros (no null, no 25.0)' },
+  { regla: 'R3', capa: 'red', comprueba: (r) => `id registrado, tema ${r.temaBase}/<id> y firma HMAC correcta` },
+  { regla: 'R4', capa: 'negocio', comprueba: () => `variable = ${VARIABLE}, unidad = ${UNIDAD}, version = ${VERSION}` },
+  {
+    regla: 'R5',
+    capa: 'negocio',
+    comprueba: (r) => `momento ISO con zona, ≤ ${r.futuroMaxS} s en el futuro, ≤ ${r.edadMaxS / 60} min de antigüedad y posterior al último auténtico`,
+  },
+  { regla: 'R6', capa: 'negocio', comprueba: () => '0 ≤ valor ≤ 100' },
+  {
+    regla: 'R7',
+    capa: 'negocio',
+    comprueba: (r) => `no sube más de ${r.subidaMaxPuntos} puntos sobre el mínimo desde la última recarga, salvo recarga confirmada`,
+  },
+  { regla: 'R8', capa: 'negocio', comprueba: (r) => `no cae a 0 de golpe si el último válido era ${r.umbralCaidaR8} % o más` },
+];
+
 export const NOMBRE_ESTADO = {
   normal: 'normal',
   bajo: 'bajo',

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "author": "Grupo 7788 - UCC - Sensor de nivel de jabon",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-c3-devkitm-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "sensor", "top": -140, "left": -30, "attrs": { "distance": "4" } },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "falla",
+      "top": 110,
+      "left": 150,
+      "attrs": { "color": "red", "key": "f", "bounce": "0", "label": "Tapar sensor" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "sensor:VCC", "esp:5V.1", "red", [] ],
+    [ "sensor:GND", "esp:GND.1", "black", [] ],
+    [ "sensor:TRIG", "esp:5", "green", [] ],
+    [ "sensor:ECHO", "esp:6", "blue", [] ],
+    [ "falla:1.l", "esp:4", "orange", [] ],
+    [ "falla:2.l", "esp:GND.7", "black", [] ]
+  ],
+  "dependencies": {}
+}

@@ -4,6 +4,7 @@ import { conectar } from '../envivo/mqtt.js';
 import { Escena } from '../escena/escena.js';
 import { estaAbierto } from '../modelo/afluencia.js';
 import { infoDispensador } from '../modelo/edificio.js';
+import { CADA_MS, CANAL, VERSION_CANAL, instantanea } from '../modelo/panel.js';
 import { Simulacion } from '../modelo/simulacion.js';
 import { Comparador } from './comparar.js';
 import { Detalle } from './detalle.js';
@@ -50,7 +51,61 @@ export class App {
 
     this.ultimo = performance.now();
     this.ultimoPanel = 0;
+    this.iniciarPanel();
     requestAnimationFrame((t) => this.cuadro(t));
+  }
+
+  // --- Panel de control (panel.html, en otra pestaña) -----------------------------
+  // El contrato de los mensajes del canal está en src/modelo/panel.js.
+
+  // El gemelo publica una foto del estado cada CADA_MS. Con la pestaña oculta el navegador pausa
+  // las animaciones, así que un worker marca el paso y la simulación no se detiene.
+  iniciarPanel() {
+    this.origen = Math.random().toString(36).slice(2, 10); // distingue este gemelo si hay varios abiertos
+    this.ultimaFoto = 0;
+    this.ultimoOculto = performance.now();
+    try {
+      this.canal = new BroadcastChannel(CANAL);
+      this.canal.onmessage = (ev) => {
+        if (ev.data?.tipo === 'hola') this.publicarFoto(true);
+      };
+      window.addEventListener('pagehide', () => this.canal.postMessage({ tipo: 'adios', v: VERSION_CANAL, origen: this.origen }));
+      const latido = new Worker(new URL('./latido.worker.js', import.meta.url), { type: 'module' });
+      latido.onmessage = () => this.tic();
+    } catch (err) {
+      // Navegador sin BroadcastChannel o sin workers: el gemelo funciona igual, sin panel aparte.
+      console.warn('Panel de control no disponible:', err);
+    }
+  }
+
+  tic() {
+    const t = performance.now();
+    const dt = Math.min(1.5, Math.max(0, (t - this.ultimoOculto) / 1000));
+    this.ultimoOculto = t;
+    if (!document.hidden) return; // visible: avanza el cuadro de animación
+    try {
+      const vel = this.velocidadActual();
+      if (this.envivo) this.sim.avanzarHasta(Date.now());
+      else if (vel > 0) this.sim.avanzar(dt * vel);
+      this.sim.vaciarEventos(); // nadie los dibuja mientras la pestaña está oculta
+      this.publicarFoto(true);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  publicarFoto(ya = false) {
+    if (!this.canal) return;
+    const t = performance.now();
+    if (!ya && t - this.ultimaFoto < CADA_MS) return;
+    this.ultimaFoto = t;
+    const foto = instantanea(this.sim, { envivo: this.envivo, velocidad: this.velocidadActual() });
+    this.canal.postMessage({ tipo: 'foto', v: VERSION_CANAL, origen: this.origen, foto });
+  }
+
+  velocidadActual() {
+    if (this.envivo) return 1;
+    return this.presentacion.activa ? this.presentacion.velocidad(this.sim) : this.velocidad;
   }
 
   crearSim() {
@@ -65,7 +120,7 @@ export class App {
     const dt = Math.min(0.1, Math.max(0, (t - this.ultimo) / 1000));
     this.ultimo = t;
     try {
-      const vel = this.envivo ? 1 : this.presentacion.activa ? this.presentacion.velocidad(this.sim) : this.velocidad;
+      const vel = this.velocidadActual();
       if (this.envivo) this.sim.avanzarHasta(Date.now());
       else if (vel > 0) this.sim.avanzar(dt * vel);
       const eventos = this.sim.vaciarEventos();
@@ -103,6 +158,7 @@ export class App {
     if (this.pestana === 'registro') paneles.pintarRegistro(sim, this.filtro);
     this.detalle.actualizar(sim);
     this.presentacion.pintar(sim);
+    this.publicarFoto();
   }
 
   // --- Controles ----------------------------------------------------------------

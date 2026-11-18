@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel de control · Bloque B</title>
+    <meta name="description" content="Panel de control de los 12 nodos IoT de nivel de jabón del Bloque B, por piso y dispensador." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3c5 7 9 11.5 9 16.5A9 9 0 0 1 7 19.5C7 14.5 11 10 16 3z' fill='%232a78d6'/%3E%3C/svg%3E" />
+    <script>
+      try {
+        const t = localStorage.getItem('gemelo-tema');
+        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <header class="pc-barra">
+      <div class="pc-marca">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c5 7 9 11.5 9 16.5A9 9 0 0 1 7 19.5C7 14.5 11 10 16 3z" fill="#2563eb" /><path d="M12 20a4 4 0 0 0 4 4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+        <div>
+          <h1>Panel de control · Bloque B</h1>
+          <p>Verificación de los nodos IoT de nivel de jabón, por piso y dispensador</p>
+        </div>
+      </div>
+      <span class="pc-fuente" id="pc-fuente" data-fuente=""><i></i><span>Buscando el gemelo…</span></span>
+      <div class="pc-reloj"><strong id="pc-hora">--:--:--</strong><span id="pc-dia"></span></div>
+    </header>
+
+    <main class="pc-cuerpo">
+      <p class="pc-aviso" id="pc-aviso" hidden></p>
+      <section class="pc-kpis" id="pc-kpis" aria-label="Resumen de los nodos"></section>
+
+      <div class="pc-filtros">
+        <label id="l-piso">Piso</label>
+        <div class="pc-grupo" id="pc-piso" role="group" aria-labelledby="l-piso"></div>
+        <label id="l-ver">Mostrar</label>
+        <div class="pc-grupo" id="pc-ver" role="group" aria-labelledby="l-ver">
+          <button type="button" data-ver="todos" aria-pressed="true">Todos los nodos</button>
+          <button type="button" data-ver="novedad" aria-pressed="false">Solo con novedad</button>
+        </div>
+      </div>
+
+      <div class="pc-rejilla">
+        <section class="pc-pisos" id="pc-pisos" aria-label="Nodos por piso"></section>
+        <aside class="pc-lado">
+          <div class="pc-tarjeta">
+            <h2>Cómo leer la verificación</h2>
+            <ul class="pc-leyenda">
+              <li><b>C · Comunicación:</b> el nodo envía dentro del tiempo esperado.</li>
+              <li><b>F · Firma:</b> el último mensaje es auténtico (R1–R3).</li>
+              <li><b>D · Dato:</b> la última lectura es posible (R4–R8).</li>
+              <li><b>N · Nivel:</b> hay jabón suficiente (30 % o más).</li>
+            </ul>
+            <p style="margin-top: 8px">Verde: bien · amarillo: atención · rojo: falla · gris: sin información. Clic en un nodo para ver el detalle.</p>
+          </div>
+          <div class="pc-tarjeta">
+            <h2>Aseo</h2>
+            <p id="pc-aseo">—</p>
+          </div>
+          <div class="pc-tarjeta">
+            <h2>Eventos del receptor</h2>
+            <ol class="pc-eventos" id="pc-eventos"></ol>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <script type="module" src="/src/panel/panel.js"></script>
+  </body>
+</html>

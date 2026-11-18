@@ -7,6 +7,24 @@ export const UNIDAD = '%';
 export const VERSION = 1;
 export const TEMA_BASE = 'ucc7788/jabon';
 
+// Qué es cada campo y qué regla del receptor lo valida. El panel de control lo muestra tal cual
+// (pestaña "Contrato del dato"); una prueba revisa que siga el mismo orden que CAMPOS.
+export const ESQUEMA = [
+  { campo: 'id', tipo: 'texto', reglas: 'R3', descripcion: 'dispensador registrado; debe coincidir con el final del tema' },
+  { campo: 'variable', tipo: 'texto', reglas: 'R4', descripcion: `siempre "${VARIABLE}"` },
+  { campo: 'valor', tipo: 'entero', reglas: 'R2 · R6 · R7 · R8', descripcion: 'nivel en % del volumen útil; entero (nunca 25.0 ni null)' },
+  { campo: 'unidad', tipo: 'texto', reglas: 'R4', descripcion: `siempre "${UNIDAD}"` },
+  { campo: 'momento', tipo: 'texto ISO 8601', reglas: 'R5', descripcion: 'hora de la lectura con zona horaria y sin milisegundos' },
+  { campo: 'version', tipo: 'entero', reglas: 'R2 · R4', descripcion: `versión del contrato: ${VERSION}` },
+  { campo: 'firma', tipo: 'texto hex (64)', reglas: 'R3', descripcion: 'HMAC-SHA256 de id|variable|valor|unidad|momento|version' },
+];
+
+// Vector de prueba obligatorio: con estos campos y la clave de prueba de d2, la firma debe dar esto.
+export const VECTOR_PRUEBA = {
+  campos: { id: 'bano-bloque-b-d2', variable: VARIABLE, valor: 25, unidad: UNIDAD, momento: '2026-10-20T09:15:00-05:00', version: VERSION },
+  firma: '270e0a5dbe4bb4f4914d0894453b2714d13dce84a0c79c8bf2ac8a718842269f',
+};
+
 export function temaDe(id, base = TEMA_BASE) {
   return `${base}/${id}`;
 }

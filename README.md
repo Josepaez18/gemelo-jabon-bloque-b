@@ -57,6 +57,7 @@ Otros comandos:
 
 ## 3. Cómo se usa
 
+- **Panel de control** (barra): abre en otra pestaña el panel de los 12 nodos, el tráfico de mensajes y el contrato del dato (sección 4).
 - **Presentar** (botón azul de la barra): pantalla completa en tema oscuro, pensada para exponer frente a un público.
   - Arranca con una portada y los pisos cayendo en su lugar. Luego sigue un recorrido de cámara de 7 escenas, una por cada paso del Momento 3 (ver la sección siguiente).
   - Los textos de cada paso están en `src/config/presentacion.js`: cámbienlos con sus propias palabras.
@@ -107,33 +108,140 @@ Cada escena de **Presentar** es un paso. Para las capturas del PDF, pausen con *
 
 **Lo que el gemelo no puede poner por ustedes:** qué corrigieron respecto al Momento 2 y el enlace al proyecto de Wokwi o al repositorio. Escríbanlos en `src/config/presentacion.js` (`correccionesMomento2` y `enlace`) y aparecen solos en los pasos 3 y 7.
 
-## 4. Conectar con Wokwi (modo en vivo)
+## 4. Panel de control (en otra pestaña)
 
-1. Abre tu proyecto de Wokwi (ESP32-C3 + HC-SR04). Debe publicar en `broker.hivemq.com`, en el tema
-   `ucc7788/jabon/bano-bloque-b-d2`, el JSON de 7 campos firmado con `clave-prueba-bano-bloque-b-d2`.
-2. Inicia la simulación en Wokwi.
-3. En el gemelo, pulsa **En vivo**. El gemelo se conecta a `wss://broker.hivemq.com:8884/mqtt` y se
-   suscribe a `ucc7788/jabon/#`. **Solo escucha: nunca publica.**
-4. Desde ese momento:
-   - `bano-bloque-b-d2` (piso 1, hombres) deja de simularse y muestra lo que manda el ESP32, validado con R1–R8.
-   - El reloj pasa a la **hora real** y los indicadores vuelven a cero. Los otros 11 baños siguen simulados, a ×1.
-   - Para d2 rigen los tiempos de la demo: **sin dato a los 45 s** y **confirmación de recarga de 2 min**.
-   - Se ignoran los mensajes de `bano-bloque-a-d1`.
-5. Para simular una recarga: en el detalle de d2, pulsa **Confirmar recarga** y *después* acerca el objeto
-   en el HC-SR04 de Wokwi (4 cm = lleno). Si subes el nivel sin confirmar, R7 lo rechaza.
-   **Marcar revisado** quita el estado "revisar".
+El botón **Panel de control** de la barra abre `panel.html` en otra pestaña del navegador. Es una página
+aparte, sin maqueta 3D, para verificar los 12 nodos y ver cómo viaja y se valida cada dato. Tiene tres pestañas
+(también se abren directo con `panel.html#nodos`, `#comunicacion` o `#contrato`).
+
+### Nodos
+
+- **Resumen:** nodos en línea, cuántos están en normal, bajo, vacío, sin dato y por revisar, y los mensajes aceptados y rechazados.
+- **Por piso:** una tabla con los 2 nodos de cada piso: conexión, nivel, funcionamiento, último mensaje y mensajes aceptados / rechazados.
+- **Verificación (C F D N):** cuatro comprobaciones por nodo, cada una con su símbolo: ✓ bien, ! atención, ✕ falla, · sin información.
+
+  | Comprobación | Qué mira | Cuándo falla (falla simulada) |
+  |---|---|---|
+  | **C** · Comunicación | llegan mensajes auténticos dentro de 3 latidos | *Sin energía* |
+  | **F** · Firma | lo que llega a su tema pasa R1–R3 | *Aviso falso*: «!» mientras lleguen mensajes falsos a su tema, «✕» si el último fue falso |
+  | **D** · Dato | la última lectura pasó R4–R8 | *Obstrucción* (R6), *Espuma* (R7), *Sensor dañado* (R8) |
+  | **N** · Nivel | 30 % o más | «!» bajo, «✕» vacío; sin comunicación queda en «·»: el último valor no se toma como dato actual |
+
+  El receptor no le atribuye al nodo los rechazos de R1–R3 (así lo pide el contrato); el panel solo los muestra por tema, para que se vea que alguien publica en nombre del nodo.
+- **Clic (o Enter) en un nodo:** el motivo de cada comprobación, el último JSON auténtico y un enlace a sus mensajes. Con las flechas ↑ ↓ se pasa de un nodo a otro.
+- **Filtros:** por piso y *Solo con novedad*.
+
+### Comunicación
+
+- **Cómo viaja el dato:** 7 etapas con sus contadores: nodo (ESP32 + HC-SR04) → broker MQTT → receptor, capa de red (R1–R3) →
+  receptor, capa de negocio (R4–R8) → estado del nodo → lista de aseo → panel.
+- **Mensajes que llegan al receptor:** uno por uno, el más reciente arriba, con filtros por resultado y por nodo. Cada uno dice
+  si es simulado, en vivo (Wokwi) o de un intruso (la falla *Aviso falso*).
+- **Recorrido de un mensaje:** al elegir uno, la lista se pausa y se ve la carga tal como llegó, sus campos, la firma, cada regla
+  R1–R8 (pasa, falla o no se evaluó) y qué hizo el receptor con él. Nunca se muestra la firma esperada: sería regalar una firma válida.
+- **Rechazos por regla:** cuántos mensajes detuvo cada regla.
+
+### Contrato del dato
+
+Lo que acuerdan el ESP32 y el receptor, en dos capas:
+
+- **Red** (cómo viaja y cómo se prueba que es auténtico): MQTT, broker, tema, QoS, cuándo publica, los 7 campos con su tipo
+  y la regla que los valida, la firma HMAC con el vector de prueba (el navegador lo recalcula) y R1–R3. Si falla, el mensaje
+  no se atribuye a ningún dispensador.
+- **Negocio** (qué significa el valor y qué se decide con él): unidad y medida, R4–R8, estados y umbrales, la lista de aseo y la
+  confirmación de recarga. Si falla, el nodo sigue vivo pero pasa a revisar.
+- **Probar un mensaje:** 11 casos listos (uno válido y uno que rompe cada regla) o tu propio JSON, validado mientras escribes con
+  un receptor aparte que parte del último valor válido del nodo. El gemelo no se entera.
+- **Gemelo ↔ panel:** el canal entre las dos pestañas y la última foto en JSON.
+
+Todo sale del código, no de textos aparte: `ESQUEMA` y `VECTOR_PRUEBA` en `src/modelo/contrato.js`, `REGLAS` en
+`src/modelo/receptor.js` y los supuestos. Si cambias un límite, el panel lo muestra solo.
+
+### Cómo se comunican el gemelo y el panel
+
+El panel no simula nada: el gemelo publica una «foto» del estado cada 500 ms por `BroadcastChannel` (dentro del mismo
+navegador, no pasa por la red) y el panel la dibuja. Si activas una falla o el modo en vivo en el gemelo, el panel lo refleja
+en medio segundo. El gemelo sigue avanzando aunque su pestaña quede oculta (un Web Worker marca el paso).
+
+| Mensaje del canal `gemelo-bloque-b` | Sentido | Cuándo |
+|---|---|---|
+| `{ tipo: 'hola', v }` | panel → gemelo | al abrir el panel: pide una foto ya |
+| `{ tipo: 'foto', v, origen, foto }` | gemelo → panel | cada 500 ms |
+| `{ tipo: 'adios', v, origen }` | gemelo → panel | al cerrar o recargar el gemelo |
+
+- **Sin gemelo abierto** (o 2,5 s sin fotos): el panel lo avisa y corre su propia simulación a ×60 para no quedar en blanco.
+- **Varios gemelos abiertos:** cada uno manda su `origen`; el panel sigue mostrando el mismo y lo dice en la barra.
+- **Si cambias la forma de la foto** (`instantanea` en `src/modelo/panel.js`), sube `VERSION_CANAL`: el panel avisa cuando las
+  dos pestañas no coinciden y pide recargarlas.
+
+## 5. Conectar con Wokwi (modo en vivo)
+
+Wokwi (wokwi.com) simula el circuito en el navegador: ahí corre el ESP32 "virtual" con su sensor, y ese
+ESP32 le manda los datos al gemelo por MQTT.
+
+### Preparar el proyecto
+
+La carpeta [`wokwi/`](wokwi/) tiene el programa del ESP32 que entiende el gemelo:
+
+| Archivo | Qué es |
+|---|---|
+| `sketch.ino` | El programa: mide con el HC-SR04, arma el JSON de 7 campos, lo firma y lo publica |
+| `diagram.json` | El circuito: ESP32-C3 DevKitM-1, HC-SR04 (arranca en 4 cm = lleno) y un pulsador rojo |
+| `libraries.txt` | La librería PubSubClient |
+
+1. En wokwi.com crea un proyecto nuevo **ESP32-C3** (Arduino).
+2. Reemplaza el contenido de `sketch.ino` y `diagram.json` por el de esta carpeta, y agrega la librería
+   **PubSubClient** (pestaña *Library Manager*, o un archivo `libraries.txt`).
+3. Guarda el proyecto: su enlace sirve para la entrega.
+
+> El sketch del Momento 2 no sirve tal cual: usa un potenciómetro y la clave `ucc7788-d2-clave-de-prueba`,
+> así que el gemelo rechaza todos sus mensajes por firma (R3) y d2 se queda en "esperando".
+
+Si usas otro sketch, tiene que cumplir esto o d2 se queda en "esperando" o salen rechazos:
+
+- **Broker y tema:** `broker.hivemq.com`, tema `ucc7788/jabon/bano-bloque-b-d2`.
+- **Mensaje:** el JSON de 7 campos, firmado con HMAC-SHA256 y la clave `clave-prueba-bano-bloque-b-d2`.
+- **Hora:** por NTP con zona `-05:00`. Un mensaje cada 15 s como máximo y nunca dos en el mismo segundo (R5).
+
+### Probarlo
+
+1. Pulsa ▶ en Wokwi. El ESP32 se conecta a `Wokwi-GUEST`, toma la hora y publica. En el monitor serie
+   aparece cada `PUBLICADO` con su JSON.
+2. En el gemelo, pulsa **En vivo**. Se conecta a `wss://broker.hivemq.com:8884/mqtt` y se suscribe a
+   `ucc7788/jabon/#`. **Solo escucha: nunca publica.** En unos segundos d2 pasa de "esperando" a 100 %,
+   y en el detalle de d2, *Último mensaje auténtico* muestra el JSON que llegó.
+3. **Cambiar el nivel:** haz clic sobre el HC-SR04 en Wokwi y mueve el deslizador de distancia:
+   4 cm = 100 %, 12 cm = 50 %, 20 cm = 0 %. Muévelo **solo hacia abajo**: si el nivel sube sin recarga
+   confirmada, R7 lo rechaza ("el jabón no sube solo"). Para llegar a 0 %, pasa unos segundos por 19 cm
+   (6 %): una caída a 0 % desde 10 % o más la rechaza R8.
+4. **Recarga:** en el detalle de d2, pulsa **Confirmar recarga** (vale 2 min) y *después* lleva el sensor
+   a 4 cm. **Marcar revisado** quita el estado "revisar".
+5. **Dato imposible:** pulsa el botón rojo de Wokwi (o la tecla `f`): el sensor queda "tapado" a 1,5 cm,
+   el ESP32 envía 116 %, R6 lo rechaza y d2 queda en "revisar" con su último valor válido. Vuelve a
+   pulsarlo para quitar la falla. Con el deslizador en 2 o 3 cm pasa lo mismo (113 % y 106 %); Wokwi no
+   deja bajar de 2 cm.
+6. **Conexión caída:** detén la simulación en Wokwi. A los 45 s d2 queda en "sin dato", nunca en 0 %.
+
+Mientras **En vivo** está encendido:
+
+- `bano-bloque-b-d2` (piso 1, hombres) deja de simularse y muestra lo que manda el ESP32, validado con R1–R8.
+- El reloj pasa a la **hora real** y los indicadores vuelven a cero. Los otros 11 baños siguen simulados, a ×1.
+- Para d2 rigen los tiempos de la demo: **sin dato a los 45 s** y **confirmación de recarga de 2 min**.
+- Se ignoran los mensajes de `bano-bloque-a-d1`.
 
 **Cosas a revisar si no llega nada:**
 
 - **Hora:** R5 rechaza mensajes con más de 60 s de adelanto o más de 15 min de antigüedad. El ESP32 debe
   tomar la hora por NTP con zona `-05:00`, y el reloj del computador debe estar en hora.
 - **Latido:** "sin dato" llega a los 45 s, así que el ESP32 debe enviar al menos un latido cada 15 s en
-  la demo. Si tu sketch usa el latido normal de 5 min, sube `receptor.envivo.sinDatoS` en
-  `src/config/supuestos.js`.
+  la demo (el de `wokwi/` lo envía cada 10 s, por si Wokwi va lento). Si tu sketch usa el latido normal
+  de 5 min, sube `receptor.envivo.sinDatoS` en `src/config/supuestos.js`.
+- **Distancia inicial:** sin `"distance"` en `diagram.json`, el HC-SR04 de Wokwi arranca en 400 cm
+  (−2375 %) y R6 rechaza todo hasta que muevas el deslizador.
 - **Red:** la tarjeta *Modo en vivo* (pestaña Resumen) muestra el estado de la conexión, los mensajes
   recibidos e ignorados, y el último JSON con su resultado.
 
-## 5. Cambiar los supuestos
+## 6. Cambiar los supuestos
 
 Todo está en **`src/config/supuestos.js`**: guarda el archivo y la página se recarga sola con `npm run dev`.
 La pestaña *Supuestos* muestra los valores en uso.
@@ -150,7 +258,7 @@ La pestaña *Supuestos* muestra los valores en uso.
 | `envivo` | URL del broker, suscripción, id en vivo, ids ignorados |
 | `modeloGlb` | ruta opcional a un `.glb` dentro de `public/` |
 
-## 6. Estructura del código
+## 7. Estructura del código
 
 ```
 src/
@@ -165,6 +273,8 @@ src/
 │  ├─ edificio.js        planta, ids y rutas por pasillo y ascensor
 │  ├─ aseo.js            3 estrategias
 │  ├─ simulacion.js      reloj, pasos de 10 s, indicadores
+│  ├─ trafico.js         últimos mensajes con su carga y cuentas por regla y por tema (solo para observar)
+│  ├─ panel.js           foto de los 12 nodos, sus 4 comprobaciones y el contrato del canal gemelo ↔ panel
 │  └─ comparar.js        7 días × 3 estrategias
 ├─ escena/               ← Three.js
 │  ├─ escena.js          cámara, vistas, clic, intro y el cuadro de cada frame
@@ -178,15 +288,26 @@ src/
 │  ├─ texturas.js        baldosas, madera y adoquines dibujados en canvas
 │  └─ paleta.js, glb.js  colores de cada tema y cargador .glb
 ├─ interfaz/             ← DOM: paneles, detalle, gráficas, comparación (en un Web Worker), vista 2D sin WebGL
+│  ├─ latido.worker.js   marca el paso con la pestaña oculta, para que el gemelo siga publicando al panel
 │  └─ presentacion.js    modo presentación: los 7 pasos del Momento 3 (textos en config/presentacion.js, estilos en src/presentacion.css)
+├─ panel/                ← panel de control (panel.html), sin Three.js
+│  ├─ panel.js           pestañas y cabecera
+│  ├─ fuente.js          canal con el gemelo, o simulación propia si no hay gemelo
+│  ├─ nodos.js           pestaña Nodos
+│  ├─ comunicacion.js    pestaña Comunicación: etapas, mensajes y recorrido de cada uno
+│  ├─ contrato.js        pestaña Contrato del dato y el probador
+│  ├─ comun.js           piezas compartidas (recorrido R1–R8, firma, campos)
+│  └─ panel.css
 ├─ envivo/mqtt.js        ← mqtt.js, solo suscripción
 └─ main.js
+index.html, panel.html   ← las dos páginas (el gemelo y el panel de control)
 test/                    ← pruebas
+wokwi/                   ← programa del ESP32 para Wokwi (sketch.ino, diagram.json, libraries.txt)
 ```
 
 La escena y la interfaz solo **leen** el estado del modelo. El modelo no sabe que existen.
 
-## 7. Receptor: reglas y textos
+## 8. Receptor: reglas y textos
 
 | Regla | Comprueba |
 |---|---|
@@ -220,7 +341,7 @@ RECHAZADO ucc7788/jabon/bano-bloque-b-d2: R3 firma no coincide
 > `"RECHAZADO bano-bloque-b-d2: R7 sube solo: ..."`. Si quieres que coincidan letra por letra,
 > ajústalos en `TEXTOS`.
 
-## 8. Decisiones que no venían en la especificación
+## 9. Decisiones que no venían en la especificación
 
 - **Sin dato en simulación:** 3 veces el latido esperado según el último valor auténtico (15 min, o 90 s si
   está por debajo de 30 %). En vivo, 45 s fijos para d2.
@@ -243,7 +364,7 @@ RECHAZADO ucc7788/jabon/bano-bloque-b-d2: R3 firma no coincide
 - **HMAC:** SHA-256 y HMAC escritos en JavaScript (síncronos), en vez de `crypto.subtle` (asíncrono). Así la
   simulación da siempre el mismo resultado. Las pruebas lo comparan contra `node:crypto`.
 
-## 9. (Opcional) Modelo .glb de Blender o SketchUp
+## 10. (Opcional) Modelo .glb de Blender o SketchUp
 
 En la pestaña *Supuestos* → **Modelo del edificio (.glb)**, carga tu archivo. También puedes ponerlo en
 `public/modelos/edificio.glb` y definir `modeloGlb: '/modelos/edificio.glb'` en los supuestos.
@@ -253,9 +374,9 @@ En la pestaña *Supuestos* → **Modelo del edificio (.glb)**, carga tu archivo.
 - **Posiciones:** los medidores, las personas y aseo usan las coordenadas de `src/modelo/edificio.js`.
   Ajústalas si tu planta es distinta.
 
-## 10. Qué cubren las pruebas
+## 11. Qué cubren las pruebas
 
-`npm test` corre 42 pruebas:
+`npm test` corre 51 pruebas:
 
 - El vector de firma obligatorio (`270e0a5d…842269f`) y la comparación con `node:crypto`.
 - El formato del momento con `-05:00`.
@@ -268,6 +389,13 @@ En la pestaña *Supuestos* → **Modelo del edificio (.glb)**, carga tu archivo.
   - en vivo, a los 45 s.
 - Sensor (tolerancia de 3 puntos) y dispositivo (cuándo envía, sin energía, aviso falso).
 - Comparar 7 días: los mismos usos totales en las 3 estrategias, y el mismo resultado con la misma semilla.
+- Panel de control:
+  - los 12 nodos por piso, y la foto viaja entera como JSON;
+  - la obstrucción deja el nodo en revisar, y sin energía queda sin comunicación (nunca en 0 %);
+  - un nodo en línea sin ningún valor válido no aparece como «funciona»;
+  - el aviso falso se ve en la comprobación de firma sin atribuírselo al nodo;
+  - el tráfico cuadra con las cuentas por capa (red y negocio).
+- Contrato del dato: el esquema sigue el orden de los 7 campos, el vector de prueba que muestra el panel es el obligatorio y las reglas son R1–R8 en orden.
 - Simulación:
   - aseo recarga y confirma sin disparar R7;
   - el domingo no hay usos;
