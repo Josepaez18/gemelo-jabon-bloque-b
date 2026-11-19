@@ -9,7 +9,7 @@ export const PRESENTACION = {
   ],
 
   // Paso 7: enlace al proyecto de Wokwi o al repositorio. Se muestra solo si no está vacío.
-  enlace: 'https://github.com/Josepaez18/gemelo-jabon-bloque-b',
+  enlace: 'https://josepaez18.github.io/gemelo-jabon-bloque-b/',
 
   pasos: {
     idea: {
